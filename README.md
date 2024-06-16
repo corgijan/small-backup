@@ -9,3 +9,4 @@ rust-musl-builder cargo build --release
 ```shell
 scp target/armv7-unknown-linux-musleabihf/release/little-share user@pi:/home/user/location
 ```
+![image](https://github.com/corgijan/little-share/assets/70795482/c1396f5c-cec8-49ac-b00a-0960c238f5a2)
