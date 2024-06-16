@@ -83,7 +83,6 @@ async fn download(Path(file_name): Path<String>) -> Response{
 
 #[tokio::main]
 async fn main() {
-    println!("Hello, world!");
     dotenv::dotenv().ok();
     let port = std::env::var("PORT").unwrap_or("3000".to_string());
     let app = Router::new()
