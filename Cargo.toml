@@ -1,0 +1,10 @@
+[package]
+name = "little_share"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = { version = "0.7.5", features = ["multipart"] }
+futures-util = "0.3.30"
+tokio = { version = "1.38.0", features = ["full"] }
+axum_static = "1.7.1"
