@@ -54,7 +54,7 @@ async fn upload_form() -> Html<String> {
     Html(format!(
         "<form action='/upload' method='post' enctype='multipart/form-data'>
             <input type='file' name='file' />
-            <input type='submit' />
+            <input type='submit' value='Upload File' />
             <br>{}
         </form> {}",
         paths, STYLE
@@ -84,10 +84,13 @@ async fn download(Path(file_name): Path<String>) -> Response{
 #[tokio::main]
 async fn main() {
     println!("Hello, world!");
+    dotenv::dotenv().ok();
+    let port = std::env::var("PORT").unwrap_or("3000".to_string());
     let app = Router::new()
         .route("/", get(upload_form))
         .route("/upload", post(upload))
         .route("/serve/:file_name", get(download));
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    println!("Listening on port {}", port);
+    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}",port)).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
