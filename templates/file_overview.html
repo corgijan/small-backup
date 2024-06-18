@@ -1,0 +1,60 @@
+<html>
+<head>
+    <title>File Overview</title>
+
+</head>
+<body>
+    <h1>File Overview</h1>
+    <form action='/upload' method='post' enctype='multipart/form-data'>
+        <input type='file' name='file' />
+        <input type='text' name='name' />
+        <input type='submit' value='Upload File' />
+        <br>
+    </form>
+    <br>
+    <input id="search">
+    <table id="table">
+        <thead>
+        <tr>
+            <th>File Name</th>
+            <th>File Size</th>
+            <th>File Type</th>
+            <th>File Extension</th>
+            <th>Download</th>
+        </tr>
+        </thead>
+        <tbody id="filetablebody">
+        {% for file in files %}
+            <tr>
+                <td><a href="/show/{{ file.name }}">{{file.name}}</a></td>
+                <td>{{ file.size }}</td>
+                <td>{{ file.size }}</td>
+                <td>{{ file.extension }}</td>
+                <td><a href="/download/{{ file.name }}">▼</a></td>
+
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    <script src="https://cdn.jsdelivr.net/npm/fuse.js/dist/fuse.js"></script>
+<script>
+    function show_only_searched(){
+        // search can be a regex
+        const children = document.getElementById('filetablebody').children
+        let val_regex = document.getElementById('search').value
+        let regex = new RegExp(val_regex, 'i')
+        for (let i = 0; i < children.length; i++) {
+            const child = children[i]
+            const text = child.innerText
+            if (regex.test(text)) {
+                child.style.display = 'table-row'
+            } else {
+                child.style.display = 'none'
+            }
+        }
+    }
+    document.getElementById('search').addEventListener('input', function (e) {
+        show_only_searched()
+    })
+</script>
+</html>
