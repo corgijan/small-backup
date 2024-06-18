@@ -90,9 +90,9 @@
 </head>
 <body>
 <h1>Smackup</h1>
-<form action='/upload' method='post' enctype='multipart/form-data'>
-    <input type='file' name='file' />
-    <input type='text' name='name' placeholder='Enter the file name' />
+<form id="uploadForm" action='/upload' method='post' enctype='multipart/form-data'>
+    <input type='file' name='file' id='fileInput' />
+    <input type='text' name='name' placeholder='Optionally Enter the file name' id='fileName' />
     <input type='submit' value='Upload File' />
 </form>
 <input id="search" placeholder="Search files...">
@@ -136,6 +136,57 @@
     }
     document.getElementById('search').addEventListener('input', function () {
         show_only_searched();
+    });
+
+    document.getElementById('uploadForm').addEventListener('submit', function (event) {
+        event.preventDefault();
+        const fileInput = document.getElementById('fileInput');
+        const fileName = document.getElementById('fileName').value;
+        const originalFileName = fileInput.files[0].name;
+        if (fileInput.files.length === 0) {
+            alert('Please select a file.');
+            return;
+        }
+        const file = fileInput.files[0];
+        const chunkSize = 1024 * 1024; // 1MB
+        const totalChunks = Math.ceil(file.size / chunkSize);
+
+        let currentChunk = 0;
+
+        function uploadNextChunk() {
+            const start = currentChunk * chunkSize;
+            const end = Math.min(start + chunkSize, file.size);
+            const chunk = file.slice(start, end);
+            const formData = new FormData();
+            formData.append('file', chunk);
+            formData.append('name', fileName);
+            formData.append('chunk', currentChunk);
+            formData.append('totalChunks', totalChunks);
+            formData.append('originalFilename', originalFileName);
+            console.log('filename', fileName)
+            console.log('Uploaded chunk ' + currentChunk + ' of ' + totalChunks + '.')
+            fetch('/upload', {
+                method: 'POST',
+                body: formData,
+            }).then(response => {
+                if (response.ok) {
+                    if (currentChunk < totalChunks) {
+                        currentChunk++;
+                        uploadNextChunk();
+                    } else {
+                        alert('Upload complete!');
+                        window.location.reload();
+                    }
+                } else {
+                    alert('Upload failed!');
+                }
+            }).catch(error => {
+                console.error('Error:', error);
+                alert('Upload failed!');
+            });
+        }
+
+        uploadNextChunk();
     });
 </script>
 </body>
