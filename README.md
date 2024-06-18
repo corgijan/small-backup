@@ -1,5 +1,5 @@
 # Small Backup (Smackup)
-Smackup is a small Backup solution that supports just files. Via the ENV you can set replicated folders (I use it to replicate to multiple HDDs/SSDs). All files between all folders are synced. Also it has an eassy web frontend.
+Smackup is a small Backup solution that supports just files. Via the ENV you can set replicated folders (I use it to replicate to multiple HDDs/SSDs). All files between all folders are synced. Also it has an easy to use web frontend.
 settings currently are:
 
 ```
