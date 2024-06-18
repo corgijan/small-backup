@@ -13,7 +13,7 @@ async fn main()-> Result<(), anyhow::Error>{
     dotenv::dotenv().ok();
     let main_loc = fs_utils::get_main_loc();
     let port = std::env::var("PORT").unwrap_or("3000".to_string());
-    let max_body = std::env::var("MAX_BODY").unwrap_or("10485760".to_string()).parse().unwrap();
+    let max_body = std::env::var("MAX_BODY").unwrap_or("20971520".to_string()).parse().unwrap();
 
     let app = Router::new()
         .route("/", get(index_page::upload_form))
