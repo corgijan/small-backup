@@ -19,7 +19,7 @@ async fn main()-> Result<(), anyhow::Error>{
         .route("/upload", get(||async {Redirect::to("/").into_response()}))
         .route("/show/:file_name", get(|file_name: Path<String>| async { file_handlers::show(file_name, false).await }))
         .route("/download/:file_name", get(|file_name: Path<String>| async { file_handlers::show(file_name, true).await }))
-        .layer(DefaultBodyLimit::max(100000024));;
+        .layer(DefaultBodyLimit::max(1024*1024*1024*1024*1024));;
 
     backup::generate_all_folders()?;
     println!("Syncing files");

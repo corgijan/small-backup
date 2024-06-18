@@ -1,14 +1,30 @@
 use axum::extract::{Multipart, Path};
 use axum::response::{IntoResponse, Redirect, Response};
-use std::fs;
-use axum::body::Body;
-use axum::http::header;
+use std::{fs, io};
+use std::io::Write;
+use axum::body::{Body, Bytes};
+use axum::BoxError;
+use axum::http::{header, StatusCode};
+use futures::Stream;
+use futures_util::TryFutureExt;
+use rand::random;
+use tokio::fs::File;
+use tokio::io::BufWriter;
+use tokio_util::io::StreamReader;
+use crate::backup::sync_files;
+use futures_util::TryStreamExt;
 
 pub async fn upload(mut multipart: Multipart) -> impl IntoResponse {
     let mut name_field = None;
     let mut original_file_name = None;
     let mut original_file_ending = None;
-    let mut data = None;
+    let mut data = false;
+    let random = random::<u64>();
+    let tmp_file_name = format!("tmp_{}", random);
+    let tmp_folder ="./smbackup_tmp";
+    if !fs::metadata(tmp_folder).is_ok() {
+        fs::create_dir(tmp_folder).unwrap();
+    }
 
     while let Some(mut field) = multipart.next_field().await.unwrap() {
         if field.name() == Some("name") {
@@ -26,25 +42,26 @@ pub async fn upload(mut multipart: Multipart) -> impl IntoResponse {
                 let bind = original_file_name.clone();
                 original_file_ending = Some(bind.clone().unwrap().split('.').last().unwrap().to_string());
             }
-            let bind = field.bytes().await.unwrap();
-            data = Some(bind);
+            let path = format!("{}/{}", tmp_folder,tmp_file_name);
+            stream_to_file(&path, field).await.unwrap();
+            println!("Data written");;
+            data = true;
         }
     }
 
-    return if name_field.is_some() && data.is_some() {
+    return if data {
         let mut file_name;
-        if original_file_ending.is_some() {
-            file_name = format!("{}.{}", &name_field.unwrap(), &original_file_ending.unwrap());
-        } else {
+        if name_field.is_none() {
+            file_name = format!("{}", &original_file_name.unwrap());
+        } else{
             file_name = name_field.unwrap();
+            if original_file_ending.is_some() {
+                file_name.push_str(&format!(".{}", original_file_ending.unwrap()));
+            }
         }
-        crate::backup::write_file(file_name, data.unwrap()).await.unwrap();
-        Redirect::to("/").into_response()
-    } else if name_field.is_none() && data.is_some() && original_file_name.is_some() && original_file_ending.is_some() && original_file_ending.is_some() {
-        crate::backup::write_file(original_file_name.unwrap(), data.unwrap()).await.unwrap();
-        Redirect::to("/").into_response()
-    } else if name_field.is_none() && data.is_some() && original_file_name.is_some() && original_file_ending.is_none() && original_file_ending.is_some() {
-        crate::backup::write_file(original_file_name.unwrap(), data.unwrap()).await.unwrap();
+        println!("Renaming file to {}", file_name);
+        fs::rename(format!("{}/{}", tmp_folder,tmp_file_name), format!("{}/{}", crate::fs_utils::get_main_loc(), file_name)).unwrap();
+        sync_files().expect("TODO: panic message");
         Redirect::to("/").into_response()
     } else {
         Response::builder().status(400).body("Bad Request".into()).unwrap()
@@ -73,4 +90,29 @@ pub async fn show(Path(file_name): Path<String>, download: bool) -> Response {
             .body("File not found".into())
             .unwrap()
     }
+}
+
+async fn stream_to_file<S, E>(path: &str, stream: S) -> Result<(), (StatusCode, String)>
+    where
+        S: Stream<Item = Result<Bytes, E>>,
+        E: Into<BoxError>,
+{
+    async {
+        // Convert the stream into an `AsyncRead`.
+        let body_with_io_error = stream.map_err(|err| io::Error::new(io::ErrorKind::Other, err.into()));
+        let body_reader = StreamReader::new(body_with_io_error);
+        futures::pin_mut!(body_reader);
+
+        // Create the file. `File` implements `AsyncWrite`.
+        println!("Streaming to file {}", &path);
+        let path = std::path::Path::new(path);
+        let mut file = BufWriter::new(File::create(path).await?);
+
+        // Copy the body into the file.
+        tokio::io::copy(&mut body_reader, &mut file).await?;
+
+        Ok::<_, io::Error>(())
+    }
+        .await
+        .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))
 }

@@ -1,14 +1,20 @@
+use std::fmt::format;
+use std::time::UNIX_EPOCH;
 use axum::Extension;
+use chrono::{DateTime};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug,Deserialize,Serialize)]
 pub struct File {
     name: String,
     size: String,
-    extension: String
+    extension: String,
+    created_at: String,
 }
 
-pub fn read_files(location: impl ToString)-> Result<Vec<File>,anyhow::Error>{
+struct NaiveDateTime(i64, i32);
+
+pub fn read_files(location: impl ToString) -> Result<Vec<File>,anyhow::Error>{
     let loc = location.to_string();
     let paths = std::fs::read_dir(loc)?;
     let paths = paths
@@ -27,18 +33,28 @@ pub fn read_files(location: impl ToString)-> Result<Vec<File>,anyhow::Error>{
                 } else {
                     format!("{} B", file_size)
                 };
+                let creation_time;
+                if std::env::var("PLATTFORM").is_ok() && std::env::var("PLATTFORM").unwrap() != "ARM"{
+                    creation_time = DateTime::from_timestamp(e.metadata().unwrap().created().unwrap().duration_since(UNIX_EPOCH).unwrap().as_secs() as i64, 0).unwrap().to_string();
+                }else {
+                    creation_time = "-".to_string();
+                }
+
                 if file_name.contains(".") {
                     let extension = file_name.split('.').last().unwrap().to_string();
+
                     File {
                         name: file_name,
                         size: file_size,
-                        extension
+                        extension,
+                        created_at: creation_time
                     }
                 } else {
                     File {
                         name: file_name,
                         size: file_size,
-                        extension: "".to_string()
+                        extension: "".to_string(),
+                        created_at: creation_time
                     }
                 }
             })

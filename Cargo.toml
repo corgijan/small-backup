@@ -1,5 +1,5 @@
 [package]
-name = "little_share"
+name = "smbackup"
 version = "0.1.0"
 edition = "2021"
 
@@ -13,6 +13,10 @@ mime_guess = "2.0.4"
 minijinja = "2.0.2"
 serde = { version = "1.0.203", features = ["derive"] }
 anyhow = "1.0.86"
+chrono = "0.4.38"
+rand = "0.9.0-alpha.1"
+futures = "0.3.30"
+tokio-util = "0.7.11"
 
 [target.armv7-unknown-linux-gnueabihf]
 linker = "arm-linux-gnueabihf-gcc"

@@ -101,7 +101,7 @@
     <tr>
         <th>File Name</th>
         <th>File Size</th>
-        <th>File Type</th>
+        <th>Created At</th>
         <th>File Extension</th>
         <th>Download</th>
     </tr>
@@ -111,7 +111,7 @@
     <tr>
         <td><a href="/show/{{ file.name }}">{{ file.name }}</a></td>
         <td>{{ file.size }}</td>
-        <td>{{ file.type }}</td>
+        <td>{{ file.created_at }}</td>
         <td>{{ file.extension }}</td>
         <td><a href="/download/{{ file.name }}">▼</a></td>
     </tr>
