@@ -1,8 +1,11 @@
+use std::fmt::format;
 use axum::{extract::{Multipart, Path, Query}, response::{Html, IntoResponse, Redirect, Response}, routing::{get, post}, Router};
 use futures_util::stream::StreamExt;
 use std::fs;
+use std::str::FromStr;
 use axum::body::{Body, Bytes};
 use axum::http::header;
+use mime_guess::Mime;
 
 static PW_CHECK: bool = true;
 static PASSWORD: &str = "password";
@@ -44,17 +47,30 @@ async fn upload(mut multipart: Multipart) -> impl IntoResponse {
 
         } else if field.name() == Some("file") {
             original_file_name = Some(dbg!(field.file_name().unwrap().to_string()));
-            original_file_ending = Some(original_file_name.clone().unwrap().split('.').last().unwrap().to_string());
+            if original_file_name.clone().unwrap().contains(".") {
+                let bind = original_file_name.clone();
+                original_file_ending = Some(bind.clone().unwrap().split('.').last().unwrap().to_string());
+            }
             let bind = field.bytes().await.unwrap();
             data = Some(bind);
         }
     }
 
-    return if name_field.is_some() && data.is_some(){
-        let file_name = format!("{}.{}", &name_field.unwrap(), &original_file_ending.unwrap());
+    return if name_field.is_some() && data.is_some() {
+        let mut file_name;
+        if original_file_ending.is_some() {
+            file_name = format!("{}.{}", &name_field.unwrap(), &original_file_ending.unwrap());
+        }else {
+            file_name = name_field.unwrap();
+        }
         write_file(file_name, data.unwrap()).await.unwrap();
         Redirect::to("/").into_response()
+
+
     } else if name_field.is_none() && data.is_some() && original_file_name.is_some() && original_file_ending.is_some() && original_file_ending.is_some(){
+        write_file(original_file_name.unwrap(), data.unwrap()).await.unwrap();
+        Redirect::to("/").into_response()
+    } else if name_field.is_none() && data.is_some() && original_file_name.is_some() && original_file_ending.is_none() && original_file_ending.is_some(){
         write_file(original_file_name.unwrap(), data.unwrap()).await.unwrap();
         Redirect::to("/").into_response()
     } else {
@@ -63,7 +79,8 @@ async fn upload(mut multipart: Multipart) -> impl IntoResponse {
 }
 
 async fn upload_form() -> Html<String> {
-    let paths = fs::read_dir(std::env::var("MAIN_LOCATION").expect("MAIN_LOCATION not set")).expect("Failed to read main directory");
+    let main_loc = get_main_loc();
+    let paths = fs::read_dir(main_loc).expect("Failed to read main directory");
     let paths = paths
         .map(|entry| {
             entry.map(|e| {
@@ -88,18 +105,19 @@ async fn upload_form() -> Html<String> {
     ))
 }
 
-async fn download(Path(file_name): Path<String>) -> Response{
-    let file_path = format!("{}/{}",std::env::var("MAIN_LOCATION").expect("MAIN_LOCATION not set"), file_name);
+async fn show(Path(file_name): Path<String>,download: bool) -> Response{
+    let main_loc = get_main_loc();
+    let file_path = format!("{}/{}",main_loc, file_name);
     if let Ok(data) = fs::read(file_path) {
         let body = Body::from(data);
-        let headers = [
-            (header::CONTENT_TYPE, "application/octet-stream"),
-            (
-                header::CONTENT_DISPOSITION,
-                &format!("attachment; filename=\"{:?}\"", file_name),
-            ),
+        let guess = mime_guess::from_path(file_name.clone()).first_or_octet_stream();
+        let mut headers = vec![
+            (header::CONTENT_TYPE, dbg!(guess.to_string())),
         ];
-        (headers, body).into_response()
+        if download {
+            headers.append(&mut vec![(header::CONTENT_DISPOSITION, format!("attachment; filename=\"{:?}\"", file_name.clone()))]);
+        }
+        (headers.into(), body).into_response()
     } else {
         Response::builder()
             .status(404)
@@ -109,22 +127,62 @@ async fn download(Path(file_name): Path<String>) -> Response{
 }
 
 async fn write_file(file_name: String, data: Bytes) -> Result<(), std::io::Error> {
-    let locations = std::env::var("REPLICATION_LOCATIONS").unwrap_or(std::env::var("MAIN_LOCATION").expect("MAIN_LOCATION not set"));
+    let locations = std::env::var("REPLICATION_LOCATIONS").expect("REPLICATION_LOCATION not set, please set in ENV or .env file");
     for loc in locations.split(":"){
         fs::write(format!("{}/{}",loc, file_name), data.clone()).expect(format!("Failed to write file to {}", loc).as_str());
     }
     Ok(())
 }
 
+fn get_main_loc() -> String{
+    let bind = std::env::var("REPLICATION_LOCATIONS").expect("REPLICATION_LOCATION not set, please set in ENV or .env file");
+    let main_loc = bind.split(":").collect::<Vec<&str>>()[0];
+    main_loc.to_string()
+}
+
+fn generate_all_folders(){
+    let locations = std::env::var("REPLICATION_LOCATIONS").expect("REPLICATION_LOCATION not set, please set in ENV or .env file");
+    for loc in locations.split(":"){
+        fs::create_dir_all(loc).expect(format!("Failed to create directory {}", loc).as_str());
+    }
+
+}
+
+fn sync_files(){
+    for loc2 in std::env::var("REPLICATION_LOCATIONS").unwrap().split(":"){
+        for loc1 in std::env::var("REPLICATION_LOCATIONS").unwrap().split(":"){
+            if loc1 != loc2 {
+                println!("Syncing {} to {}", loc1, loc2);
+                for file in fs::read_dir(loc1).expect("Failed to read main directory"){
+                    let file = file.unwrap();
+                    // if file is not in loc2 write it to loc2
+                    if !fs::metadata(format!("{}/{}", loc2, file.file_name().to_str().unwrap())).is_ok() {
+                        let data = fs::read(format!("{}/{}", loc1, file.file_name().to_str().unwrap())).expect("Failed to read file");
+                        fs::write(format!("{}/{}", loc2, file.file_name().to_str().unwrap()), data).expect("Failed to write file");
+                    }
+                }
+            }
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() {
     dotenv::dotenv().ok();
+    let main_loc = get_main_loc();
     let port = std::env::var("PORT").unwrap_or("3000".to_string());
     let app = Router::new()
         .route("/", get(upload_form))
         .route("/upload", post(upload))
-        .route("/serve/:file_name", get(download));
+        .route("/serve/:file_name", get(|file_name: Path<String>| async { show(file_name, false).await }))
+        .route("/download/:file_name", get(|file_name: Path<String>| async { show(file_name, true).await }));
+
     println!("Little_Share :: Listening on port {}", port);
+    generate_all_folders();
+    println!("Syncing files");
+    sync_files();
+    println!("Syncing done");
+
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}",port)).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }

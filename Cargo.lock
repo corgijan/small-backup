@@ -339,6 +339,7 @@ dependencies = [
  "axum_static",
  "dotenv",
  "futures-util",
+ "mime_guess",
  "tokio",
 ]
 
