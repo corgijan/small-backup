@@ -1,8 +1,16 @@
-# Little Share
+# Small Backup (Smackup)
+Smackup is a small Backup solution that supports just files. Via the ENV you can set replicated folders (I use it to replicate to multiple HDDs/SSDs). All files between all folders are synced. Also it has an easy to use web frontend.
+settings currently are:
 
-I needed a little webserver just to share files in my VPN. Maybe ssh would be enough but I like web-frontends.
-Also I wanted to learn cross-compiling for ARM.
+```
+REPLICATION_LOCATIONS=./data/data1:./data/data2 # Replication locations separated by ":"
+PORT=4000 # Port where the app runs
+GENERATE_DIRS=False # creates the folders that are set as replication when set to "True"
+```
 
+![image](https://github.com/corgijan/little-share/assets/70795482/918a0b23-b00d-44b9-8c97-1a659e6e1596)
+
+## Cross compile for RASPI
 ```shell
 alias rust-musl-builder='docker run --rm -it -v "$(pwd)":/home/rust/src messense/rust-musl-cross:armv7-musleabihf'                                                  I
 rust-musl-builder cargo build --release
@@ -12,4 +20,3 @@ rust-musl-builder cargo build --release
 scp target/armv7-unknown-linux-musleabihf/release/little-share user@pi:/home/user/location
 ```
 
-![image](https://github.com/corgijan/little-share/assets/70795482/c1396f5c-cec8-49ac-b00a-0960c238f5a2)
