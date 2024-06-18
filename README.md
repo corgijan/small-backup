@@ -1,5 +1,9 @@
 # Small Backup (Smackup)
-Smackup is a small Backup solution that supports just files. Via the ENV you can set replicated folders (I use it to replicate to multiple HDDs/SSDs). All files between all folders are synced. Also it has an easy to use web frontend.
+Smackup is a small backup is a minimal backup solution that supports flat files and can replicate them to different locations. 
+
+Via the an `.env file you can set replicated folders (I use it to replicate to multiple HDDs/SSDs, you can do just 1). 
+
+All files between all folders are synced. Also it has an easy to use web frontend.
 settings currently are:
 
 ```
@@ -12,7 +16,7 @@ GENERATE_DIRS=False # creates the folders that are set as replication when set t
 
 ## Cross compile for RASPI
 ```shell
-alias rust-musl-builder='docker run --rm -it -v "$(pwd)":/home/rust/src messense/rust-musl-cross:armv7-musleabihf'                                                  I
+alias rust-musl-builder='docker run --rm -it -v "$(pwd)":/home/rust/src messense/rust-musl-cross:armv7-musleabihf'
 rust-musl-builder cargo build --release
 ```
 
