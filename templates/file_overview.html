@@ -1,60 +1,142 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-    <title>File Overview</title>
-
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Small Backups</title>
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+        h1 {
+            text-align: center;
+            padding: 20px;
+            background-color: #4CAF50;
+            color: white;
+            margin: 0;
+        }
+        form {
+            max-width: 600px;
+            margin: 30px auto;
+            padding: 20px;
+            background-color: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+        form input[type="file"],
+        form input[type="text"],
+        form input[type="submit"] {
+            display: block;
+            width: 100%;
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        form input[type="submit"] {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        form input[type="submit"]:hover {
+            background-color: #45a049;
+        }
+        #search {
+            display: block;
+            width: calc(100% - 40px);
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        table {
+            width: 100%;
+            max-width: 800px;
+            margin: 20px auto;
+            border-collapse: collapse;
+            background-color: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        table th, table td {
+            padding: 12px 15px;
+            text-align: left;
+        }
+        table th {
+            background-color: #4CAF50;
+            color: white;
+        }
+        table tbody tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        table tbody tr:hover {
+            background-color: #e9e9e9;
+        }
+        table a {
+            color: #4CAF50;
+            text-decoration: none;
+        }
+        table a:hover {
+            text-decoration: underline;
+        }
+    </style>
 </head>
 <body>
-    <h1>File Overview</h1>
-    <form action='/upload' method='post' enctype='multipart/form-data'>
-        <input type='file' name='file' />
-        <input type='text' name='name' />
-        <input type='submit' value='Upload File' />
-        <br>
-    </form>
-    <br>
-    <input id="search">
-    <table id="table">
-        <thead>
-        <tr>
-            <th>File Name</th>
-            <th>File Size</th>
-            <th>File Type</th>
-            <th>File Extension</th>
-            <th>Download</th>
-        </tr>
-        </thead>
-        <tbody id="filetablebody">
-        {% for file in files %}
-            <tr>
-                <td><a href="/show/{{ file.name }}">{{file.name}}</a></td>
-                <td>{{ file.size }}</td>
-                <td>{{ file.size }}</td>
-                <td>{{ file.extension }}</td>
-                <td><a href="/download/{{ file.name }}">▼</a></td>
-
-            </tr>
-        {% endfor %}
-        </tbody>
-    </table>
-    <script src="https://cdn.jsdelivr.net/npm/fuse.js/dist/fuse.js"></script>
+<h1>Smackup</h1>
+<form action='/upload' method='post' enctype='multipart/form-data'>
+    <input type='file' name='file' />
+    <input type='text' name='name' placeholder='Enter the file name' />
+    <input type='submit' value='Upload File' />
+</form>
+<input id="search" placeholder="Search files...">
+<table id="table">
+    <thead>
+    <tr>
+        <th>File Name</th>
+        <th>File Size</th>
+        <th>File Type</th>
+        <th>File Extension</th>
+        <th>Download</th>
+    </tr>
+    </thead>
+    <tbody id="filetablebody">
+    {% for file in files %}
+    <tr>
+        <td><a href="/show/{{ file.name }}">{{ file.name }}</a></td>
+        <td>{{ file.size }}</td>
+        <td>{{ file.type }}</td>
+        <td>{{ file.extension }}</td>
+        <td><a href="/download/{{ file.name }}">▼</a></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+<script src="https://cdn.jsdelivr.net/npm/fuse.js/dist/fuse.js"></script>
 <script>
-    function show_only_searched(){
-        // search can be a regex
-        const children = document.getElementById('filetablebody').children
-        let val_regex = document.getElementById('search').value
-        let regex = new RegExp(val_regex, 'i')
+    function show_only_searched() {
+        const children = document.getElementById('filetablebody').children;
+        let val_regex = document.getElementById('search').value;
+        let regex = new RegExp(val_regex, 'i');
         for (let i = 0; i < children.length; i++) {
-            const child = children[i]
-            const text = child.innerText
+            const child = children[i];
+            const text = child.innerText;
             if (regex.test(text)) {
-                child.style.display = 'table-row'
+                child.style.display = 'table-row';
             } else {
-                child.style.display = 'none'
+                child.style.display = 'none';
             }
         }
     }
-    document.getElementById('search').addEventListener('input', function (e) {
-        show_only_searched()
-    })
+    document.getElementById('search').addEventListener('input', function () {
+        show_only_searched();
+    });
 </script>
+</body>
 </html>
