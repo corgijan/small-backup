@@ -23,9 +23,10 @@ pub async fn upload(mut multipart: Multipart) -> impl IntoResponse {
     let mut data = false;
     let random = random::<u64>();
     let tmp_folder = "./smbackup_tmp";
-    let tmp_file_name = format!("tmp_{}","NAME");
+    let tmp_file_name = format!("tmp_{}",random);
     let mut chunk_index: Option<u32> = None;
     let mut total_chunks: Option<u32> = None;
+    let mut proper_file_name = None;
 
     if !PathBuf::from(tmp_folder).exists() {
         fs::create_dir(tmp_folder).unwrap();
@@ -68,6 +69,7 @@ pub async fn upload(mut multipart: Multipart) -> impl IntoResponse {
             Some("originalFilename") => {
                 let bind = field.text().await.ok();
                 original_file_name = bind.map(|s| s.to_string());
+                proper_file_name = original_file_name.clone();
                 if let Some(ref name) = original_file_name {
                     if name.contains('.') {
                         original_file_ending = name.split('.').last().map(|s| s.to_string());
@@ -81,7 +83,10 @@ pub async fn upload(mut multipart: Multipart) -> impl IntoResponse {
             _ => {}
         }
     }
-    println!("Chunk index: {:?}, Total chunks: {:?}", chunk_index, total_chunks);
+
+    let proper_file_name = original_file_name.clone().unwrap();
+    let cclone= chunk_index.clone().unwrap();
+    fs::rename(format!("{}/{}_{}", tmp_folder, tmp_file_name,cclone), format!("{}/{}_{}", tmp_folder,proper_file_name,cclone)).unwrap();
     println!("original file name: {:?}", original_file_name);
 
     if data && chunk_index.is_some() && total_chunks.is_some() && chunk_index == total_chunks {
@@ -95,27 +100,28 @@ pub async fn upload(mut multipart: Multipart) -> impl IntoResponse {
         else {
             file_name =  original_file_name.unwrap();
         }
-        println!("Finalizing file: {}", file_name);
-        println!("Final file name: {}", file_name);
 
         let final_path = format!("{}/{}", crate::fs_utils::get_main_loc(), file_name);
         let mut final_file = fs::File::create(&final_path).unwrap();
         println!("Final path: {}", final_path);
+        let chunk_num = total_chunks.unwrap();
 
-        for i in 0..total_chunks.unwrap()+1 {
-            let chunk_path = format!("{}/{}_{}", tmp_folder, tmp_file_name, i);
-            println!("Chunk path: {}", chunk_path);
+        for i in 0..chunk_num+1 {
+            let chunk_path = format!("{}/{}_{}", tmp_folder,proper_file_name, i);
+            println!("writing to final file: {}/{}", i,chunk_num);
             let mut chunk_file = fs::File::open(&chunk_path).unwrap();
             std::io::copy(&mut chunk_file, &mut final_file).unwrap();
             fs::remove_file(chunk_path).unwrap();
         }
         sync_files().expect("Failed to sync files");
+        println!("Done");
         return Redirect::to("/").into_response();
-    } else if dbg!(data) && dbg!(chunk_index.is_some()) && total_chunks.is_some() && total_chunks.unwrap() > chunk_index.unwrap() {
+    } else if data && chunk_index.is_some() && total_chunks.is_some() && total_chunks.unwrap() > chunk_index.unwrap() {
         let completeness = chunk_index.unwrap() as f32 / total_chunks.unwrap() as f32 * 100.0;
+        let json_comp = "{\"completeness\": ".to_string() + &completeness.to_string() + "}";
         Response::builder()
             .status(200)
-            .body("Chunk received".into())
+            .body(json_comp.into())
             .unwrap()
     }
     else {

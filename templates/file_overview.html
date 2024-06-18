@@ -93,6 +93,7 @@
 <form id="uploadForm" action='/upload' method='post' enctype='multipart/form-data'>
     <input type='file' name='file' id='fileInput' />
     <input type='text' name='name' placeholder='Optionally Enter the file name' id='fileName' />
+    <p id="completness"></p>
     <input type='submit' value='Upload File' />
 </form>
 <input id="search" placeholder="Search files...">
@@ -148,7 +149,7 @@
             return;
         }
         const file = fileInput.files[0];
-        const chunkSize = 1024 * 1024; // 1MB
+        const chunkSize = 1024 * 1024 * 30; // 30MB
         const totalChunks = Math.ceil(file.size / chunkSize);
 
         let currentChunk = 0;
