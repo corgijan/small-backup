@@ -1,5 +1,5 @@
 # Small Backup (Smackup)
-Smackup is a small backup is a minimal (as in runs on a well on a pi 3) backup solution that supports flat files and can replicate them to different locations. 
+Smackup is a small backup is a minimal (as in runs on a well on a pi 3) backup solution (currently best fitted for static files), that supports flat files and can replicate them to different locations. 
 
 Via the an `.env file you can set replicated folders (I use it to replicate to multiple HDDs/SSDs, you can do just 1). 
 
