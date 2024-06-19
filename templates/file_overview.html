@@ -86,17 +86,56 @@
         table a:hover {
             text-decoration: underline;
         }
+        .folder {
+            font-weight: bold;
+            background-color: #dff0d8;
+        }
+        .create-folder {
+            max-width: 600px;
+            margin: 30px auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .create-folder input[type="text"] {
+            width: calc(100% - 22px);
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .create-folder button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .create-folder button:hover {
+            background-color: #45a049;
+        }
     </style>
 </head>
 <body>
 <h1>Smackup</h1>
-<form id="uploadForm" action='/upload' method='post' enctype='multipart/form-data'>
-    <input type='file' name='file' id='fileInput' />
+<form id="uploadForm" action='/upload{{current_path}}' method='post' enctype='multipart/form-data'>
+    <input type='file' name='files' id='fileInput' multiple />
     <input type='text' name='name' placeholder='Optionally Enter the file name' id='fileName' />
-    <input type='submit' value='Upload File' />
-    <p id="completness"></p>
+    <input type='submit' value='Upload Files' />
+    <p id="completeness"></p>
 </form>
+
+<div class="create-folder">
+    <label for="folderName">Create New Folder:</label>
+    <input type="text" id="folderName" name="folderName" placeholder="Enter folder name" required>
+    <button onclick="submitFolderForm()">Create</button>
+</div>
+
 <input id="search" placeholder="Search files...">
+
 <table id="table">
     <thead>
     <tr>
@@ -109,17 +148,27 @@
     </thead>
     <tbody id="filetablebody">
     {% for file in files %}
-    <tr>
-        <td><a href="/show/{{ file.name }}">{{ file.name }}</a></td>
+    {% if file.extension == 'folder'%}
+    <tr class="folder">
+        <td><a href="{{ file.relative_path }}/{{file.name}}">{{ file.name }}</a></td>
         <td>{{ file.size }}</td>
         <td>{{ file.created_at }}</td>
         <td>{{ file.extension }}</td>
-        <td><a href="/download/{{ file.name }}">▼</a></td>
-    </tr>
+        <td><a onclick="alert('Can\'t download folders at the moment')">▼</a></td>
+    </tr>{% endif %}
+    {% endfor %}
+    {% for file in files %}
+    {% if file.extension != 'folder'%}
+    <tr class="">
+        <td><a href="/{{ file.relative_path }}/{{file.name}}">{{ file.name }}</a></td>
+        <td>{{ file.size }}</td>
+        <td>{{ file.created_at }}</td>
+        <td>{{ file.extension }}</td>
+        <td><a href="/download{{ file.relative_path }}/{{file.name}}">▼</a></td>
+    </tr>{% endif %}
     {% endfor %}
     </tbody>
-</table>
-<script src="https://cdn.jsdelivr.net/npm/fuse.js/dist/fuse.js"></script>
+    </table>
 <script>
     function show_only_searched() {
         const children = document.getElementById('filetablebody').children;
@@ -143,18 +192,28 @@
         event.preventDefault();
         const fileInput = document.getElementById('fileInput');
         const fileName = document.getElementById('fileName').value;
-        const originalFileName = fileInput.files[0].name;
         if (fileInput.files.length === 0) {
             alert('Please select a file.');
             return;
         }
-        const file = fileInput.files[0];
-        const chunkSize = 1024 * 1024 * 10; // 10MB
-        const totalChunks = Math.ceil(file.size / chunkSize);
 
+        const files = fileInput.files;
+        const chunkSize = 1024 * 1024 * 10; // 10MB
+
+        let currentFileIndex = 0;
         let currentChunk = 0;
+        let successfulUploads = 0;
+        let failedUploads = 0;
 
         function uploadNextChunk() {
+            if (currentFileIndex >= files.length) {
+                alert(`Upload complete! ${successfulUploads} files uploaded successfully, ${failedUploads} files failed.`);
+                window.location.reload();
+                return;
+            }
+
+            const file = files[currentFileIndex];
+            const totalChunks = Math.ceil(file.size / chunkSize);
             const start = currentChunk * chunkSize;
             const end = Math.min(start + chunkSize, file.size);
             const chunk = file.slice(start, end);
@@ -163,37 +222,68 @@
             formData.append('name', fileName);
             formData.append('chunk', currentChunk);
             formData.append('totalChunks', totalChunks);
-            formData.append('originalFilename', originalFileName);
-            console.log('filename', fileName)
-            console.log('Uploaded chunk ' + currentChunk + ' of ' + totalChunks + '.')
+            formData.append('originalFilename', file.name);
+            formData.append('uploadPath', "{{current_path}}");
+
             fetch('/upload', {
                 method: 'POST',
                 body: formData,
             }).then(response => {
                 if (response.ok) {
-                    if (currentChunk+1 >= totalChunks) {
-                        document.getElementById('completness').innerText = 'FINALIZING UPLOAD...';
-                    }else{
-                        document.getElementById('completness').innerText = 'Upload ' + Math.round((currentChunk+1) / totalChunks * 100) + '% complete';
+                    if (currentChunk + 1 >= totalChunks) {
+                        document.getElementById('completeness').innerText = 'FINALIZING UPLOAD...';
+                    } else {
+                        document.getElementById('completeness').innerText = 'Upload ' + Math.round((currentChunk + 1) / totalChunks * 100) + '% complete';
                     }
                     if (currentChunk < totalChunks) {
                         currentChunk++;
                         uploadNextChunk();
                     } else {
-                        alert('Upload complete!');
-                        window.location.reload();
+                        currentChunk = 0;
+                        currentFileIndex++;
+                        successfulUploads++;
+                        uploadNextChunk();
                     }
                 } else {
-                    alert('Upload failed!');
+                    console.error('Error:', response.headers.get("cause"));
+                    failedUploads++;
+                    currentChunk = 0;
+                    currentFileIndex++;
+                    uploadNextChunk();
                 }
             }).catch(error => {
-                console.error('Error:', error);
-                alert('Upload failed!');
+                console.error('Upload failed!', error);
+                failedUploads++;
+                currentChunk = 0;
+                currentFileIndex++;
+                uploadNextChunk();
             });
         }
 
         uploadNextChunk();
     });
+
+    function submitFolderForm() {
+        const folderName = document.getElementById('folderName').value;
+        const form = document.getElementById('uploadForm');
+        alert(  '/create_folder{{current_path}}/' + folderName)
+        form.action = '/create_folder{{current_path}}/' + folderName;
+        fetch('/create_folder{{current_path}}/' + folderName, {
+            method: 'POST',
+        }).then(response => {
+            if (response.ok) {
+                let loc = '/{{current_path}}/' + folderName;
+                loc = loc.replace(/\/\//g, '/');
+                alert('Folder created successfully' +loc);
+                window.location.replace(loc);
+            } else {
+                alert('Failed to create folder');
+            }
+        }).catch(error => {
+            console.error('Folder creation failed!', error);
+            alert('Failed to create folder');
+        })
+    }
 </script>
 </body>
 </html>

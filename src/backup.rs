@@ -1,4 +1,5 @@
 use std::fs;
+use std::path::Path;
 use anyhow::anyhow;
 use axum::body::Bytes;
 
@@ -16,19 +17,36 @@ pub fn generate_all_folders() ->Result<(),anyhow::Error>{
     Ok(())
 }
 
-pub fn sync_files() -> Result<(), anyhow::Error>{
-    for loc2 in std::env::var("REPLICATION_LOCATIONS").unwrap().split(":") {
-        for loc1 in std::env::var("REPLICATION_LOCATIONS").unwrap().split(":") {
+pub fn sync_files() -> Result<(), anyhow::Error> {
+    let binding = std::env::var("REPLICATION_LOCATIONS")?;
+    let locations: Vec<&str> = binding.split(':').collect();
+
+    for &loc2 in &locations {
+        for &loc1 in &locations {
             if loc1 != loc2 {
                 println!("Syncing {} to {}", loc1, loc2);
-                for file in fs::read_dir(loc1)? {
-                    let file = file?;
-                    // if file is not in loc2 write it to loc2
-                    if !fs::metadata(format!("{}/{}", loc2, file.file_name().to_str().unwrap())).is_ok() {
-                        let data = fs::read(format!("{}/{}", loc1, file.file_name().to_str().unwrap()))?;
-                        fs::write(format!("{}/{}", loc2, file.file_name().to_str().unwrap()), data)?
-                    }
-                }
+                sync_directory(loc1, loc2)?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn sync_directory(src: &str, dest: &str) -> anyhow::Result<()> {
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let path = entry.path();
+        let dest_path = Path::new(dest).join(entry.file_name());
+
+        if path.is_dir() {
+            if !dest_path.exists() {
+                fs::create_dir(&dest_path)?;
+            }
+            sync_directory(&path.to_string_lossy(), &dest_path.to_string_lossy())?;
+        } else if path.is_file() {
+            if !dest_path.exists() {
+                fs::copy(&path, &dest_path)?;
             }
         }
     }

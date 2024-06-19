@@ -4,7 +4,7 @@ use std::{fs, io};
 use std::io::Write;
 use std::path::PathBuf;
 use axum::body::{Body, Bytes};
-use axum::BoxError;
+use axum::{BoxError, Form};
 use axum::http::{header, StatusCode};
 use futures::Stream;
 use futures_util::TryFutureExt;
@@ -14,7 +14,25 @@ use tokio::io::{AsyncWriteExt, BufWriter};
 use tokio_util::io::StreamReader;
 use crate::backup::sync_files;
 use futures_util::TryStreamExt;
+use serde::{Deserialize, Serialize};
+use crate::main;
 
+
+
+pub async fn create_folder(Path(folder_path): Path<String>) -> impl IntoResponse {
+    dbg!("CREATE FOLDER");
+    dbg!(&folder_path);
+    let main_loc = crate::fs_utils::get_main_loc();
+    let folder_path = dbg!(format!("{}/{}", main_loc, folder_path));
+    if !PathBuf::from(&folder_path).exists() {
+        fs::create_dir(&folder_path).unwrap();
+    }
+    sync_files().unwrap();
+    Response::builder()
+        .status(200)
+        .body("Folder created".to_string())
+        .unwrap()
+}
 
 pub async fn upload(mut multipart: Multipart) -> impl IntoResponse {
     let mut name_field = None;
@@ -27,6 +45,7 @@ pub async fn upload(mut multipart: Multipart) -> impl IntoResponse {
     let mut chunk_index: Option<u32> = None;
     let mut total_chunks: Option<u32> = None;
     let mut proper_file_name = None;
+    let mut path = None;
 
     if !PathBuf::from(tmp_folder).exists() {
         fs::create_dir(tmp_folder).unwrap();
@@ -76,6 +95,9 @@ pub async fn upload(mut multipart: Multipart) -> impl IntoResponse {
                     }
                 }
             }
+            Some("uploadPath") => {
+                 path = dbg!(field.text().await.ok());
+            }
             Some("totalChunks") => {
                 let bind = field.text().await.ok();
                 total_chunks = bind.and_then(|s| s.parse::<u32>().ok());
@@ -83,13 +105,14 @@ pub async fn upload(mut multipart: Multipart) -> impl IntoResponse {
             _ => {}
         }
     }
+    dbg!(&path);
 
     let proper_file_name = original_file_name.clone().unwrap();
     let cclone= chunk_index.clone().unwrap();
     fs::rename(format!("{}/{}_{}", tmp_folder, tmp_file_name,cclone), format!("{}/{}_{}", tmp_folder,proper_file_name,cclone)).unwrap();
     println!("original file name: {:?}", original_file_name);
 
-    if data && chunk_index.is_some() && total_chunks.is_some() && chunk_index == total_chunks {
+    if data && chunk_index.is_some() && total_chunks.is_some() && chunk_index == total_chunks && path.is_some() {
         let mut file_name;
         if name_field.is_some() {
             file_name = name_field.unwrap();
@@ -101,7 +124,16 @@ pub async fn upload(mut multipart: Multipart) -> impl IntoResponse {
             file_name =  original_file_name.unwrap();
         }
 
-        let final_path = format!("{}/{}", crate::fs_utils::get_main_loc(), file_name);
+        let final_path = format!("{}{}/{}", crate::fs_utils::get_main_loc(), path.unwrap(),file_name);
+        // return error if file already exists
+        if PathBuf::from(&final_path).exists() {
+            return Response::builder()
+                .status(StatusCode::CONFLICT)
+                .header("cause","File already exists")
+                .body("File already exists".into())
+                .unwrap();
+        }
+
         let mut final_file = fs::File::create(&final_path).unwrap();
         println!("Final path: {}", final_path);
         let chunk_num = total_chunks.unwrap();
@@ -136,7 +168,16 @@ async fn stream_to_file(path: &str, mut data: Bytes) -> io::Result<()> {
     file.write_all(&*data)?;
     Ok(())
 }
-pub async fn show(Path(file_name): Path<String>, download: bool) -> Response {
+pub async fn show_handler(Path(file_name): Path<String>, download: bool) -> Response {
+    return show(Path(file_name), download).await.unwrap_or_else(|e| {
+        Response::builder()
+            .status(404)
+            .body(format!("Error: {}", e).into())
+            .unwrap()
+    });
+}
+
+pub async fn show(Path(file_name): Path<String>, download: bool) -> Result<Response,anyhow::Error> {
     let main_loc = crate::fs_utils::get_main_loc();
     let file_path = format!("{}/{}", main_loc, file_name);
     if let Ok(data) = fs::read(file_path) {
@@ -151,12 +192,12 @@ pub async fn show(Path(file_name): Path<String>, download: bool) -> Response {
                 (header::CONTENT_DISPOSITION, format!("attachment; filename=\"{:?}\"", file_name.clone()))
             ]
         }
-        (headers, body).into_response()
+        Ok((headers, body).into_response())
     } else {
-        Response::builder()
+        Ok(Response::builder()
             .status(404)
             .body("File not found".into())
-            .unwrap()
+            .unwrap())
     }
 }
 

@@ -10,20 +10,34 @@ pub struct File {
     size: String,
     extension: String,
     created_at: String,
+    relative_path: String
 }
 
 struct NaiveDateTime(i64, i32);
 
-pub fn read_files(location: impl ToString) -> Result<Vec<File>,anyhow::Error>{
-    let loc = location.to_string();
-    let paths = std::fs::read_dir(loc)?;
+pub fn read_files(location: impl ToString + Clone) -> Result<Vec<File>,anyhow::Error>{
+    let loc = dbg!(location.to_string());
+    let replace_location_main =  get_main_loc() + "/" + "/";
+    let replace_location =  get_main_loc() + "/" ;
+    let relative_path = location.clone().to_string().replace(replace_location_main.as_str(), "").replace(replace_location.as_str(), "" );
+    let paths = std::fs::read_dir(loc.clone())?;
     let paths = paths
         .map(|entry| {
             entry.map(|e| {
                 let file_name = e.file_name().to_str().unwrap().to_string();
                 let file_size = e.metadata().unwrap().len();
+                // check if file is a folder
+                if e.metadata().unwrap().is_dir() {
+                    return File {
+                        name: file_name,
+                        size: "-".to_string(),
+                        extension: "folder".to_string(),
+                        created_at: "-".to_string(),
+                        relative_path: relative_path.to_string()
+                    }
+                }
                 let file_size = if file_size > 1024 * 1024 * 1024 {
-                    format!("{} GB", file_size / (1024 * 1024 * 1024))
+                    format!("{:.1} GB", file_size as f64 / (1024 * 1024 * 1024) as f64)
                 }
                 else if file_size > 1024 * 1024 {
                     format!("{} MB", file_size / (1024 * 1024))
@@ -47,14 +61,16 @@ pub fn read_files(location: impl ToString) -> Result<Vec<File>,anyhow::Error>{
                         name: file_name,
                         size: file_size,
                         extension,
-                        created_at: creation_time
+                        created_at: creation_time,
+                        relative_path: relative_path.to_string()
                     }
                 } else {
                     File {
                         name: file_name,
                         size: file_size,
                         extension: "".to_string(),
-                        created_at: creation_time
+                        created_at: creation_time,
+                        relative_path: relative_path.to_string()
                     }
                 }
             })
