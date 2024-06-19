@@ -11,6 +11,9 @@ REPLICATION_LOCATIONS=./data/data1:./data/data2 # Replication locations separate
 PORT=4000 # Port where the app runs
 GENERATE_DIRS=False # creates the folders that are set as replication when set to "True"
 ```
+Roadmap 
+- directory support
+- s3 as location
 
 ![image](https://github.com/corgijan/little-share/assets/70795482/918a0b23-b00d-44b9-8c97-1a659e6e1596)
 
