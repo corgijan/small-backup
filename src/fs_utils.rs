@@ -20,7 +20,7 @@ pub fn read_files(location: impl ToString + Clone) -> Result<Vec<File>,anyhow::E
     let replace_location_main =  get_main_loc() + "/" + "/";
     let replace_location =  get_main_loc() + "/" ;
     let relative_path = location.clone().to_string().replace(replace_location_main.as_str(), "").replace(replace_location.as_str(), "" ).replace("//", "/");
-    let paths = std::fs::read_dir(loc.clone())?;
+    let paths = dbg!(std::fs::read_dir(loc.clone())?);
     let paths = paths
         .map(|entry| {
             entry.map(|e| {

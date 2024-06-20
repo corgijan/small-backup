@@ -22,6 +22,13 @@ use crate::main;
 pub async fn create_folder(Path(folder_path): Path<String>) -> impl IntoResponse {
     dbg!("CREATE FOLDER");
     dbg!(&folder_path);
+    if folder_path.replace("/","").chars().any(|c| !c.is_alphanumeric()) {
+        return Response::builder()
+            .status(400)
+            .body("Not allowed character in path, only alphanumeric characters allowed".to_string())
+            .unwrap();
+    }
+
     if folder_path.is_empty() || folder_path.contains("..") ||  folder_path.contains("\\") || folder_path.contains(":") {
         return Response::builder()
             .status(400)

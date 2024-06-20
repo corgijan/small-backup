@@ -18,7 +18,6 @@ async fn main()-> Result<(), anyhow::Error>{
     let max_body = std::env::var("MAX_BODY").unwrap_or("20971520".to_string()).parse().unwrap();
 
     let app = Router::new()
-        .route("/files/*key", get(handler_wildcard))
         .route("/", get(index_page::upload_form_main))
         .route("/create_folder/*key", post(create_folder))
         .route("/*key", get(index_page::upload_form))

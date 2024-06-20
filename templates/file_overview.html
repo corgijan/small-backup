@@ -300,17 +300,23 @@
 
         uploadNextChunk();
     });
-
     function submitFolderForm() {
         const folderName = prompt("How should the folder be named?");
         if (!folderName) {
             return;
         }
-        if (folderName.includes('/') || folderName.includes('\\') || folderName.includes('..') || folderName.includes(' ') || folderName.includes(':') || folderName.includes('*') || folderName.includes('?') || folderName.includes('"') || folderName.includes('<') || folderName.includes('>') || folderName.includes('|')) {
-            alert('Folder name cannot contain non-ASCII characters or / \\ ..');
+
+
+        // Define a regular expression to match non-ASCII characters
+        const nonAsciiPattern = /^\w+$/;
+
+        // Check if the folder name contains non-ASCII characters
+        if (!nonAsciiPattern.test(folderName)) {
+            alert('Folder name can only contain ASCII characters');
             return;
         }
-        if (folderName == "") {
+
+        if (folderName === "") {
             alert('Folder name cannot be empty');
             return;
         }
@@ -322,7 +328,7 @@
             if (response.ok) {
                 let loc = '/{{current_path}}/' + folderName;
                 loc = loc.replace(/\/\//g, '/');
-                alert('Folder created successfully' + loc);
+                alert('Folder created successfully: ' + folderName);
                 window.location.replace(loc);
             } else {
                 alert('Failed to create folder');
@@ -330,7 +336,7 @@
         }).catch(error => {
             console.error('Folder creation failed!', error);
             alert('Failed to create folder');
-        })
+        });
     }
 </script>
 </body>

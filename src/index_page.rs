@@ -25,10 +25,8 @@ pub async fn upload_form_main() -> impl IntoResponse {
 pub async fn file_overview_handler(path: String) -> Result<Response,anyhow::Error> {
     let path = "/".to_string() + &*path;
     let path2 = path.clone();
-    // check if contains any non alphanumeric characters
-    if path2.replace("/","").chars().any(|c| !c.is_alphanumeric()) {
-        return Err(anyhow::anyhow!("Not allowed character in path, only alphanumeric characters allowed"));
-    }
+    dbg!(path2.clone());
+
     let breadcrumb = path.split("/");
     let mut bread_list = Vec::new();
     let mut last_agg = "".to_string();
