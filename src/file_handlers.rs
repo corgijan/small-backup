@@ -22,6 +22,12 @@ use crate::main;
 pub async fn create_folder(Path(folder_path): Path<String>) -> impl IntoResponse {
     dbg!("CREATE FOLDER");
     dbg!(&folder_path);
+    if folder_path.is_empty() || folder_path.contains("..") ||  folder_path.contains("\\") || folder_path.contains(":") {
+        return Response::builder()
+            .status(400)
+            .body("Bad Request".to_string())
+            .unwrap();
+    }
     let main_loc = crate::fs_utils::get_main_loc();
     let folder_path = dbg!(format!("{}/{}", main_loc, folder_path));
     if !PathBuf::from(&folder_path).exists() {

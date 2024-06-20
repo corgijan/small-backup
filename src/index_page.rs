@@ -24,6 +24,13 @@ pub async fn upload_form_main() -> impl IntoResponse {
 
 pub async fn file_overview_handler(path: String) -> Result<Response,anyhow::Error> {
     let path = "/".to_string() + &*path;
+    let breadcrumb = path.split("/");
+    let mut bread_list = Vec::new();
+    let mut last_agg = "".to_string();
+    for b in breadcrumb {
+        last_agg = last_agg + &*b + "/";
+        bread_list.push(vec![b.to_string(), last_agg.to_string()]);
+    }
     let main_loc = crate::fs_utils::get_main_loc();
     let loc = dbg!(main_loc +  &*path);
     // if location does not exist, return 404
@@ -41,7 +48,7 @@ pub async fn file_overview_handler(path: String) -> Result<Response,anyhow::Erro
     let path = path.replace("//", "");
     return Ok(Response::builder()
         .status(200)
-        .body(tmpl.render(context!(files => files, current_path => path))?.into())
+        .body(tmpl.render(context!(files => files, current_path => path,breadcrumbs => bread_list))?.into())
         .unwrap());
 
 }

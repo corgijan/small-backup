@@ -19,6 +19,25 @@
             color: white;
             margin: 0;
         }
+        .breadcrumbs {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 10px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .breadcrumbs a {
+            color: #4CAF50;
+            text-decoration: none;
+            margin-right: 5px;
+        }
+        .breadcrumbs a:hover {
+            text-decoration: underline;
+        }
+        .breadcrumbs span {
+            margin-right: 5px;
+        }
         form {
             max-width: 600px;
             margin: 30px auto;
@@ -121,18 +140,23 @@
 </head>
 <body>
 <h1>Smackup</h1>
+
+<div class="breadcrumbs">
+    {% for (name, path) in breadcrumbs %}
+        {% if path == '/' %}
+            <a href="/">home</a>
+        {% else %}
+            <a href="{{ path }}">{{ name }}</a>
+        {% endif %}
+    {% endfor %}
+</div>
+
 <form id="uploadForm" action='/upload{{current_path}}' method='post' enctype='multipart/form-data'>
     <input type='file' name='files' id='fileInput' multiple />
     <input type='text' name='name' placeholder='Optionally Enter the file name' id='fileName' />
     <input type='submit' value='Upload Files' />
     <p id="completeness"></p>
 </form>
-
-<div class="create-folder">
-    <label for="folderName">Create New Folder:</label>
-    <input type="text" id="folderName" name="folderName" placeholder="Enter folder name" required>
-    <button onclick="submitFolderForm()">Create</button>
-</div>
 
 <input id="search" placeholder="Search files...">
 
@@ -160,15 +184,24 @@
     {% for file in files %}
     {% if file.extension != 'folder'%}
     <tr class="">
+        {% if file.relative_path != '' %}
         <td><a href="/{{ file.relative_path }}/{{file.name}}">{{ file.name }}</a></td>
+        {% else %}
+        <td><a href="/{{file.name}}">{{ file.name }}</a></td>
+        {% endif %}
         <td>{{ file.size }}</td>
         <td>{{ file.created_at }}</td>
         <td>{{ file.extension }}</td>
         <td><a href="/download{{ file.relative_path }}/{{file.name}}">▼</a></td>
-    </tr>{% endif %}
+    </tr>
+    {% endif %}
     {% endfor %}
+    <tr class="">
+        <td colspan="5" ><a onclick="submitFolderForm()">Create folder</a></td>
+    </tr>
     </tbody>
-    </table>
+</table>
+
 <script>
     function show_only_searched() {
         const children = document.getElementById('filetablebody').children;
@@ -264,9 +297,21 @@
     });
 
     function submitFolderForm() {
-        const folderName = document.getElementById('folderName').value;
+        const folderName = prompt("How should the folder be named?");
+        if (!folderName) {
+            return;
+        }
+        if (folderName.includes('/') || folderName.includes('\\') || folderName.includes('..') || folderName.includes(' ') || folderName.includes(':') || folderName.includes('*') || folderName.includes('?') || folderName.includes('"') || folderName.includes('<') || folderName.includes('>') || folderName.includes('|')) {
+            alert('Folder name cannot contain non-ASCII characters or / \\ ..');
+            return;
+        }
+        if (folderName == "") {
+            alert('Folder name cannot be empty');
+            return;
+        }
+
         const form = document.getElementById('uploadForm');
-        alert(  '/create_folder{{current_path}}/' + folderName)
+        alert('/create_folder{{current_path}}/' + folderName)
         form.action = '/create_folder{{current_path}}/' + folderName;
         fetch('/create_folder{{current_path}}/' + folderName, {
             method: 'POST',
@@ -274,7 +319,7 @@
             if (response.ok) {
                 let loc = '/{{current_path}}/' + folderName;
                 loc = loc.replace(/\/\//g, '/');
-                alert('Folder created successfully' +loc);
+                alert('Folder created successfully' + loc);
                 window.location.replace(loc);
             } else {
                 alert('Failed to create folder');
