@@ -24,6 +24,11 @@ pub async fn upload_form_main() -> impl IntoResponse {
 
 pub async fn file_overview_handler(path: String) -> Result<Response,anyhow::Error> {
     let path = "/".to_string() + &*path;
+    let path2 = path.clone();
+    // check if contains any non alphanumeric characters
+    if path2.replace("/","").chars().any(|c| !c.is_alphanumeric()) {
+        return Err(anyhow::anyhow!("Not allowed character in path, only alphanumeric characters allowed"));
+    }
     let breadcrumb = path.split("/");
     let mut bread_list = Vec::new();
     let mut last_agg = "".to_string();
@@ -32,7 +37,7 @@ pub async fn file_overview_handler(path: String) -> Result<Response,anyhow::Erro
         bread_list.push(vec![b.to_string(), last_agg.to_string()]);
     }
     let main_loc = crate::fs_utils::get_main_loc();
-    let loc = dbg!(main_loc +  &*path);
+    let loc = dbg!(main_loc + &*path);
     // if location does not exist, return 404
     if !fs::metadata(loc.clone()).is_ok() {
         return Err(anyhow::anyhow!("Directory {} does not exist", loc));

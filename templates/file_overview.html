@@ -173,22 +173,27 @@
     <tbody id="filetablebody">
     {% for file in files %}
     {% if file.extension == 'folder'%}
-    <tr class="folder">
-        <td><a href="{{ file.relative_path }}/{{file.name}}">{{ file.name }}</a></td>
-        <td>{{ file.size }}</td>
-        <td>{{ file.created_at }}</td>
-        <td>{{ file.extension }}</td>
-        <td><a onclick="alert('Can\'t download folders at the moment')">▼</a></td>
-    </tr>{% endif %}
+       <tr class="folder">
+           {% if file.relative_path != '' %}
+               <td><a href="/{{file.relative_path }}/{{file.name}}">{{ file.name }}</a></td>
+           {% else %}
+               <td><a href="/{{file.name}}">{{ file.name }}</a></td>
+           {% endif %}
+            <td>{{ file.size }}</td>
+            <td>{{ file.created_at }}</td>
+            <td>{{ file.extension }}</td>
+            <td><a onclick="alert('Can\'t download folders at the moment')">▼</a></td>
+        </tr>
+    {% endif %}
     {% endfor %}
     {% for file in files %}
     {% if file.extension != 'folder'%}
     <tr class="">
-        {% if file.relative_path != '' %}
-        <td><a href="/{{ file.relative_path }}/{{file.name}}">{{ file.name }}</a></td>
+    {% if file.relative_path != '' %}
+            <td><a href="/{{ file.relative_path }}/{{file.name}}">{{ file.name }}</a></td>
         {% else %}
-        <td><a href="/{{file.name}}">{{ file.name }}</a></td>
-        {% endif %}
+            <td><a href="/{{file.name}}">{{ file.name }}</a></td>
+    {% endif %}
         <td>{{ file.size }}</td>
         <td>{{ file.created_at }}</td>
         <td>{{ file.extension }}</td>
@@ -311,8 +316,6 @@
         }
 
         const form = document.getElementById('uploadForm');
-        alert('/create_folder{{current_path}}/' + folderName)
-        form.action = '/create_folder{{current_path}}/' + folderName;
         fetch('/create_folder{{current_path}}/' + folderName, {
             method: 'POST',
         }).then(response => {
