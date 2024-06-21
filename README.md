@@ -12,7 +12,6 @@
 REPLICATION_LOCATIONS=./data/data1:./data/data2 # Replication locations separated by ":"
 PORT=4000 # Port where the app runs
 GENERATE_DIRS=False # creates the folders that are set as replication when set to "True"
-PLATFORM=ARM
 ```
 ## Try it out
 ```shell
