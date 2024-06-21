@@ -7,8 +7,6 @@
 ## Usage
 #### The settings are available via an .env next top the binary or via ENV variables. Here is an exampe: 
 
-All files between all folders are synced. Also it has an easy to use web frontend.
-settings currently are:
 
 ```
 REPLICATION_LOCATIONS=./data/data1:./data/data2 # Replication locations separated by ":"
