@@ -1,70 +1,72 @@
-use axum::extract::{Multipart, Path};
-use axum::response::{IntoResponse, Redirect, Response};
 use std::{fs, io};
 use std::io::Write;
 use std::path::PathBuf;
+
 use axum::body::{Body, Bytes};
-use axum::{BoxError, Form};
+use axum::extract::{Multipart, Path};
 use axum::http::{header, StatusCode};
-use futures::Stream;
+use axum::response::{IntoResponse, Redirect, Response};
 use futures_util::TryFutureExt;
+use futures_util::TryStreamExt;
 use rand::random;
 use tokio::fs::File;
-use tokio::io::{AsyncWriteExt, BufWriter};
-use tokio_util::io::StreamReader;
+
 use crate::backup::sync_files;
-use futures_util::TryStreamExt;
-use serde::{Deserialize, Serialize};
-use crate::main;
 
+pub async fn create_folder_wrap(Path(folder_path): Path<String>) -> Response {
+    let error_resp = Response::builder()
+        .status(404)
+        .body("Error".to_string().into())
+        .unwrap();
+    let resp = create_folder(Path(folder_path)).await;
+    resp.unwrap_or_else(|e| error_resp )
+}
 
-
-pub async fn create_folder(Path(folder_path): Path<String>) -> impl IntoResponse {
+pub async fn create_folder(Path(folder_path): Path<String>) -> Result<Response, anyhow::Error> {
     dbg!("CREATE FOLDER");
     dbg!(&folder_path);
-    if folder_path.replace("/","").chars().any(|c| !c.is_alphanumeric()) {
-        return Response::builder()
-            .status(400)
-            .body("Not allowed character in path, only alphanumeric characters allowed".to_string())
-            .unwrap();
-    }
-
-    if folder_path.is_empty() || folder_path.contains("..") ||  folder_path.contains("\\") || folder_path.contains(":") {
-        return Response::builder()
-            .status(400)
-            .body("Bad Request".to_string())
-            .unwrap();
+    if folder_path.replace("/", "").chars().any(|c| !c.is_alphanumeric()) {
+        return Err(anyhow::anyhow!("Invalid folder name"));
     }
     let main_loc = crate::fs_utils::get_main_loc();
     let folder_path = dbg!(format!("{}/{}", main_loc, folder_path));
     if !PathBuf::from(&folder_path).exists() {
-        fs::create_dir(&folder_path).unwrap();
+        fs::create_dir(&folder_path)?;
     }
-    sync_files().unwrap();
-    Response::builder()
-        .status(200)
-        .body("Folder created".to_string())
-        .unwrap()
+    sync_files()?;
+    Ok(Redirect::to("/").into_response())
 }
 
-pub async fn upload(mut multipart: Multipart) -> impl IntoResponse {
+pub async fn upload_wrap(mut multipart: Multipart) -> impl IntoResponse {
+    upload_file(multipart).await.unwrap_or_else(|e| {
+        Response::builder()
+            .status(404)
+            .body(format!("Error: {}", e).into())
+            .unwrap()
+    })
+}
+
+pub async fn upload_file(mut multipart: Multipart) -> Result<Response, anyhow::Error> {
     let mut name_field = None;
     let mut original_file_name = None;
     let mut original_file_ending = None;
     let mut data = false;
     let random = random::<u64>();
     let tmp_folder = "./smbackup_tmp";
-    let tmp_file_name = format!("tmp_{}",random);
+    let tmp_file_name = format!("tmp_{}", random);
     let mut chunk_index: Option<u32> = None;
     let mut total_chunks: Option<u32> = None;
     let mut proper_file_name = None;
     let mut path = None;
 
     if !PathBuf::from(tmp_folder).exists() {
-        fs::create_dir(tmp_folder).unwrap();
+        fs::create_dir(tmp_folder)?;
     }
-    let mut file = File::create(format!("{}/{}", tmp_folder, tmp_file_name)).await.unwrap();
-    while let Some(mut field) = multipart.next_field().await.unwrap() {
+    //check if filename  contains unsafe system characters
+
+
+    let mut file = File::create(format!("{}/{}", tmp_folder, tmp_file_name)).await?;
+    while let Some(mut field) = multipart.next_field().await? {
         match field.name() {
             Some("name") => {
                 let bind = field.text().await.ok();
@@ -77,15 +79,15 @@ pub async fn upload(mut multipart: Multipart) -> impl IntoResponse {
                 }
             }
             Some("file") => {
-                let mut file_data = field.bytes().await.unwrap();
+                let mut file_data = field.bytes().await?;
 
                 if let Some(idx) = chunk_index {
                     let chunk_path = format!("{}/{}_{}", tmp_folder, tmp_file_name, idx);
-                    stream_to_file(&chunk_path,file_data.clone()).await.unwrap();
+                    stream_to_file(&chunk_path, file_data.clone()).await?;
                     data = true;
-                }else {
+                } else {
                     let chunk_path = format!("{}/{}_tmp", tmp_folder, tmp_file_name);
-                    stream_to_file(&chunk_path,file_data.clone()).await.unwrap();
+                    stream_to_file(&chunk_path, file_data.clone()).await?;
                     data = true;
                 }
             }
@@ -94,9 +96,8 @@ pub async fn upload(mut multipart: Multipart) -> impl IntoResponse {
                 let rewrite_file = data;
                 chunk_index = bind.and_then(|s| s.parse::<u32>().ok());
                 if rewrite_file {
-                    fs::rename(format!("{}/{}_tmp", tmp_folder, tmp_file_name), format!("{}/{}_{}", tmp_folder, tmp_file_name, chunk_index.unwrap())).unwrap();
+                    fs::rename(format!("{}/{}_tmp", tmp_folder, tmp_file_name), format!("{}/{}_{}", tmp_folder, tmp_file_name, chunk_index.unwrap()))?;
                 }
-
             }
             Some("originalFilename") => {
                 let bind = field.text().await.ok();
@@ -109,7 +110,7 @@ pub async fn upload(mut multipart: Multipart) -> impl IntoResponse {
                 }
             }
             Some("uploadPath") => {
-                 path = dbg!(field.text().await.ok());
+                path = dbg!(field.text().await.ok());
             }
             Some("totalChunks") => {
                 let bind = field.text().await.ok();
@@ -120,67 +121,73 @@ pub async fn upload(mut multipart: Multipart) -> impl IntoResponse {
     }
     dbg!(&path);
 
-    let proper_file_name = original_file_name.clone().unwrap();
-    let cclone= chunk_index.clone().unwrap();
-    fs::rename(format!("{}/{}_{}", tmp_folder, tmp_file_name,cclone), format!("{}/{}_{}", tmp_folder,proper_file_name,cclone)).unwrap();
+    let proper_file_name = original_file_name.clone().ok_or(anyhow::anyhow!("Original file name not found"))?;
+    let cclone = chunk_index.clone().ok_or(anyhow::anyhow!("Chunk index not found"))?;
+    fs::rename(format!("{}/{}_{}", tmp_folder, tmp_file_name, cclone), format!("{}/{}_{}", tmp_folder, proper_file_name, cclone))?;
     println!("original file name: {:?}", original_file_name);
 
     if data && chunk_index.is_some() && total_chunks.is_some() && chunk_index == total_chunks && path.is_some() {
         let mut file_name;
         if name_field.is_some() {
-            file_name = name_field.unwrap();
+            file_name = name_field.ok_or(anyhow::anyhow!("Name field not found"))?;
             if let Some(ext) = original_file_ending {
                 file_name.push_str(&format!(".{}", ext));
             }
-        }
-        else {
-            file_name =  original_file_name.unwrap();
+        } else {
+            file_name = original_file_name.ok_or(anyhow::anyhow!("Original file name not found"))?;
         }
 
-        let final_path = format!("{}{}/{}", crate::fs_utils::get_main_loc(), path.unwrap(),file_name);
+
+        let final_path = format!("{}{}/{}", crate::fs_utils::get_main_loc(), path.unwrap(), file_name);
         // return error if file already exists
         if PathBuf::from(&final_path).exists() {
-            return Response::builder()
+            return Ok(Response::builder()
                 .status(StatusCode::CONFLICT)
-                .header("cause","File already exists")
-                .body("File already exists".into())
-                .unwrap();
+                .header("cause", "File already exists")
+                .body("File already exists".into())?);
         }
 
-        let mut final_file = fs::File::create(&final_path).unwrap();
+        let mut final_file = fs::File::create(&final_path)?;
         println!("Final path: {}", final_path);
-        let chunk_num = total_chunks.unwrap();
+        let chunk_num = total_chunks.ok_or(anyhow::anyhow!("Total chunks not found"))?;
+        if proper_file_name.contains('.') || proper_file_name.contains('/') || proper_file_name.contains('\\') || proper_file_name.contains(':') || proper_file_name.contains('*') || proper_file_name.contains('?') || proper_file_name.contains('"') || proper_file_name.contains('<') || proper_file_name.contains('>') || proper_file_name.contains('|') {
+            return Ok(Response::builder()
+                .status(StatusCode::BAD_REQUEST)
+                .header("cause", "Invalid file name")
+                .body("Invalid file name".into())?);
+        }
 
-        for i in 0..chunk_num+1 {
-            let chunk_path = format!("{}/{}_{}", tmp_folder,proper_file_name, i);
-            println!("writing to final file: {}/{}", i,chunk_num);
-            let mut chunk_file = fs::File::open(&chunk_path).unwrap();
-            std::io::copy(&mut chunk_file, &mut final_file).unwrap();
-            fs::remove_file(chunk_path).unwrap();
+        for i in 0..chunk_num + 1 {
+            let chunk_path = format!("{}/{}_{}", tmp_folder, proper_file_name, i);
+            println!("writing to final file: {}/{}", i, chunk_num);
+            let mut chunk_file = fs::File::open(&chunk_path)?;
+            std::io::copy(&mut chunk_file, &mut final_file)?;
+            fs::remove_file(chunk_path)?;
         }
         sync_files().expect("Failed to sync files");
         println!("Done");
-        return Redirect::to("/").into_response();
+        return Ok(Redirect::to("/").into_response());
     } else if data && chunk_index.is_some() && total_chunks.is_some() && total_chunks.unwrap() > chunk_index.unwrap() {
         let completeness = chunk_index.unwrap() as f32 / total_chunks.unwrap() as f32 * 100.0;
         let json_comp = "{\"completeness\": ".to_string() + &completeness.to_string() + "}";
-        Response::builder()
+        Ok(Response::builder()
             .status(200)
             .body(json_comp.into())
-            .unwrap()
-    }
-    else {
-        Response::builder()
+            ?)
+    } else {
+        Ok(Response::builder()
             .status(400)
             .body("Bad Request".into())
-            .unwrap()
+            ?)
     }
 }
+
 async fn stream_to_file(path: &str, mut data: Bytes) -> io::Result<()> {
     let mut file = fs::File::create(path)?;
     file.write_all(&*data)?;
     Ok(())
 }
+
 pub async fn show_handler(Path(file_name): Path<String>, download: bool) -> Response {
     return show(Path(file_name), download).await.unwrap_or_else(|e| {
         Response::builder()
@@ -190,7 +197,7 @@ pub async fn show_handler(Path(file_name): Path<String>, download: bool) -> Resp
     });
 }
 
-pub async fn show(Path(file_name): Path<String>, download: bool) -> Result<Response,anyhow::Error> {
+pub async fn show(Path(file_name): Path<String>, download: bool) -> Result<Response, anyhow::Error> {
     let main_loc = crate::fs_utils::get_main_loc();
     let file_path = format!("{}/{}", main_loc, file_name);
     if let Ok(data) = fs::read(file_path) {
@@ -209,8 +216,7 @@ pub async fn show(Path(file_name): Path<String>, download: bool) -> Result<Respo
     } else {
         Ok(Response::builder()
             .status(404)
-            .body("File not found".into())
-            .unwrap())
+            .body("File not found".into())?)
     }
 }
 

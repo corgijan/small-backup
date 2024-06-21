@@ -226,16 +226,23 @@
         show_only_searched();
     });
 
+
+
     document.getElementById('uploadForm').addEventListener('submit', function (event) {
         event.preventDefault();
         const fileInput = document.getElementById('fileInput');
         const fileName = document.getElementById('fileName').value;
-        if (fileInput.files.length === 0) {
+        const files = fileInput.files;
+
+        if (files.length === 0) {
             alert('Please select a file.');
             return;
         }
 
-        const files = fileInput.files;
+        if (files.length > 1) {
+            alert('Multiple files selected. The custom file name will be disregarded, and original file names will be used.');
+        }
+
         const chunkSize = 1024 * 1024 * 10; // 10MB
 
         let currentFileIndex = 0;
@@ -257,7 +264,10 @@
             const chunk = file.slice(start, end);
             const formData = new FormData();
             formData.append('file', chunk);
-            formData.append('name', fileName);
+            //only use the custom file name if multiple files are not selected
+            if (files.length === 1) {
+                formData.append('name', fileName || file.name);
+            }
             formData.append('chunk', currentChunk);
             formData.append('totalChunks', totalChunks);
             formData.append('originalFilename', file.name);
@@ -299,8 +309,7 @@
         }
 
         uploadNextChunk();
-    });
-    function submitFolderForm() {
+    });    function submitFolderForm() {
         const folderName = prompt("How should the folder be named?");
         if (!folderName) {
             return;

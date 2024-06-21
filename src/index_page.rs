@@ -13,7 +13,9 @@ pub async fn upload_form(Path(path): Path<String>) -> impl IntoResponse {
         .unwrap();
     resp.unwrap_or_else(|e| error_resp)
 }
-pub async fn upload_form_main() -> impl IntoResponse {
+
+
+pub async fn file_overview_wrap() -> impl IntoResponse {
     let resp = file_overview_handler("/".to_string()).await;
     let error_resp = Response::builder()
         .status(404)
