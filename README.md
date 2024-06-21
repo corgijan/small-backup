@@ -28,6 +28,7 @@ docker run -p 3000:3000 -v ./data:/data -e REPLICATION_LOCATIONS=/data/data1:/da
 Roadmap 
 - [x] directory support
 - [ ] s3 (compatible) as location
+- [ ] Zipped directory download
 
 ![image](https://github.com/corgijan/small-backup/assets/70795482/6c39d35c-8055-4501-b7fe-7cdc65fe3015)
 
