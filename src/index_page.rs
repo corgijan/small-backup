@@ -51,9 +51,10 @@ pub async fn file_overview_handler(path: String) -> Result<Response,anyhow::Erro
     env.add_template("file_overview", include_str!("../templates/file_overview.html"))?;
     let tmpl = env.get_template("file_overview")?;
     let path = path.replace("//", "");
+    let show_created_timestamp = std::env::var("PLATFORM").is_ok() && std::env::var("PLATFORM").unwrap() != "ARM";
     return Ok(Response::builder()
         .status(200)
-        .body(tmpl.render(context!(files => files, current_path => path,breadcrumbs => bread_list))?.into())
+        .body(tmpl.render(context!(files => files, current_path => path,breadcrumbs => bread_list, creation_on=> show_created_timestamp))?.into())
         .unwrap());
 
 }

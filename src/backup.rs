@@ -38,6 +38,8 @@ fn sync_directory(src: &str, dest: &str) -> anyhow::Result<()> {
         let entry = entry?;
         let path = entry.path();
         let dest_path = Path::new(dest).join(entry.file_name());
+        dbg!(path.to_string_lossy());
+        dbg!(dest_path.to_string_lossy());
 
         if path.is_dir() {
             if !dest_path.exists() {

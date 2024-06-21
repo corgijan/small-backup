@@ -18,6 +18,14 @@ PLATFORM=ARM
 ```shell
 docker run -p 3000:3000 hainz98/smbackup  
 ```
+/data is usually the folder where the backups are stored, if you want to mount something in it, otherwise mount your locations in the /data folder and pass the REPLICATION_LOCATIONS as ENV variables.
+
+for example: 
+```shell
+docker run -p 3000:3000 -v ./data:/data -e REPLICATION_LOCATIONS=/data/data1:/data/data2 hainz98/smbackup  
+```
+
+
 Roadmap 
 - [x] directory support
 - [ ] s3 (compatible) as location

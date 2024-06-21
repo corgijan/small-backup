@@ -128,7 +128,7 @@ pub async fn upload_file(mut multipart: Multipart) -> Result<Response, anyhow::E
 
     if data && chunk_index.is_some() && total_chunks.is_some() && chunk_index == total_chunks && path.is_some() {
         let mut file_name;
-        if name_field.is_some() {
+        if name_field.is_some() && name_field != original_file_name{
             file_name = name_field.ok_or(anyhow::anyhow!("Name field not found"))?;
             if let Some(ext) = original_file_ending {
                 file_name.push_str(&format!(".{}", ext));
@@ -150,12 +150,6 @@ pub async fn upload_file(mut multipart: Multipart) -> Result<Response, anyhow::E
         let mut final_file = fs::File::create(&final_path)?;
         println!("Final path: {}", final_path);
         let chunk_num = total_chunks.ok_or(anyhow::anyhow!("Total chunks not found"))?;
-        if proper_file_name.contains('.') || proper_file_name.contains('/') || proper_file_name.contains('\\') || proper_file_name.contains(':') || proper_file_name.contains('*') || proper_file_name.contains('?') || proper_file_name.contains('"') || proper_file_name.contains('<') || proper_file_name.contains('>') || proper_file_name.contains('|') {
-            return Ok(Response::builder()
-                .status(StatusCode::BAD_REQUEST)
-                .header("cause", "Invalid file name")
-                .body("Invalid file name".into())?);
-        }
 
         for i in 0..chunk_num + 1 {
             let chunk_path = format!("{}/{}_{}", tmp_folder, proper_file_name, i);

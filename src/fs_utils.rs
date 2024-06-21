@@ -51,7 +51,7 @@ pub fn read_files(location: impl ToString + Clone) -> Result<Vec<File>,anyhow::E
                 if std::env::var("PLATFORM").is_ok() && std::env::var("PLATFORM").unwrap() != "ARM"{
                     creation_time = DateTime::from_timestamp(e.metadata().unwrap().created().unwrap().duration_since(UNIX_EPOCH).unwrap().as_secs() as i64, 0).unwrap().to_string();
                 }else {
-                    creation_time = "-".to_string();
+                    creation_time = "".to_string();
                 }
 
                 if file_name.contains(".") {

@@ -136,6 +136,10 @@
         .create-folder button:hover {
             background-color: #45a049;
         }
+        #tableview{
+            overflow-x: scroll;
+            max-width: 100vw;
+        }
     </style>
 </head>
 <body>
@@ -159,13 +163,15 @@
 </form>
 
 <input id="search" placeholder="Search files...">
-
-<table id="table">
+<div id="tableview">
+    <table id="table">
     <thead>
     <tr>
         <th>File Name</th>
         <th>File Size</th>
-        <th>Created At</th>
+        {% if creation_on %}
+            <th>Created At</th>
+        {% endif %}
         <th>File Extension</th>
         <th>Download</th>
     </tr>
@@ -180,7 +186,9 @@
                <td><a href="/{{file.name}}">{{ file.name }}</a></td>
            {% endif %}
             <td>{{ file.size }}</td>
-            <td>{{ file.created_at }}</td>
+           {% if creation_on %}
+                <td>{{ file.created_at }}</td>
+           {% endif %}
             <td>{{ file.extension }}</td>
             <td><a onclick="alert('Can\'t download folders at the moment')">▼</a></td>
         </tr>
@@ -195,18 +203,20 @@
             <td><a href="/{{file.name}}">{{ file.name }}</a></td>
     {% endif %}
         <td>{{ file.size }}</td>
-        <td>{{ file.created_at }}</td>
+        {% if creation_on %}
+            <td>{{ file.created_at }}</td>
+        {% endif %}
         <td>{{ file.extension }}</td>
         <td><a href="/download{{ file.relative_path }}/{{file.name}}">▼</a></td>
     </tr>
     {% endif %}
     {% endfor %}
     <tr class="">
-        <td colspan="5" ><a onclick="submitFolderForm()">Create folder</a></td>
+        <td colspan="5" ><a onclick="submitFolderForm()">Create folder &#43;</a></td>
     </tr>
     </tbody>
 </table>
-
+</div>
 <script>
     function show_only_searched() {
         const children = document.getElementById('filetablebody').children;
