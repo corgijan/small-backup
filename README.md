@@ -12,10 +12,11 @@ PORT=4000 # Port where the app runs
 GENERATE_DIRS=False # creates the folders that are set as replication when set to "True"
 ```
 Roadmap 
-- directory support
-- s3 as location
+- [x] directory support
+- [ ] s3 (compatible) as location
 
-![image](https://github.com/corgijan/little-share/assets/70795482/918a0b23-b00d-44b9-8c97-1a659e6e1596)
+![image](https://github.com/corgijan/small-backup/assets/70795482/6c39d35c-8055-4501-b7fe-7cdc65fe3015)
+
 
 ## Cross compile for RASPI
 ```shell
