@@ -1,5 +1,5 @@
 # Small Backup (Smackup)
-### Smackup is a small backup is a very minimal backup solution with a web user interface, that supports flat file backups and can replicate them to different locations. 
+### Smackup is a very minimal backup solution with a web user interface, that supports flat file backups and can replicate them to different locations. 
 
 #### I wanted to have a backup solution for my old pi that is very effiecent and simple enough to hand it to my family and friedns. I couldn't find any so I built it myself.
 
