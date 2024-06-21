@@ -14,6 +14,10 @@ PORT=4000 # Port where the app runs
 GENERATE_DIRS=False # creates the folders that are set as replication when set to "True"
 PLATFORM=ARM
 ```
+## Try it out
+```shell
+docker run -p 3000:3000 hainz98/smbackup  
+```
 Roadmap 
 - [x] directory support
 - [ ] s3 (compatible) as location

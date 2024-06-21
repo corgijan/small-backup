@@ -48,7 +48,7 @@ pub fn read_files(location: impl ToString + Clone) -> Result<Vec<File>,anyhow::E
                     format!("{} B", file_size)
                 };
                 let creation_time;
-                if std::env::var("PLATTFORM").is_ok() && std::env::var("PLATTFORM").unwrap() != "ARM"{
+                if std::env::var("PLATFORM").is_ok() && std::env::var("PLATFORM").unwrap() != "ARM"{
                     creation_time = DateTime::from_timestamp(e.metadata().unwrap().created().unwrap().duration_since(UNIX_EPOCH).unwrap().as_secs() as i64, 0).unwrap().to_string();
                 }else {
                     creation_time = "-".to_string();
@@ -82,7 +82,36 @@ pub fn read_files(location: impl ToString + Clone) -> Result<Vec<File>,anyhow::E
 
 
 pub fn get_main_loc() -> String {
-    let bind = std::env::var("REPLICATION_LOCATIONS").expect("REPLICATION_LOCATION not set, please set in ENV or .env file");
+    let bind = std::env::var("REPLICATION_LOCATIONS").expect("REPLICATION_LOCATIONS not set, please set in ENV or .env file");
     let main_loc = bind.split(":").collect::<Vec<&str>>()[0];
     main_loc.to_string()
 }
+
+/*
+pub async fn read_folder_to_zip(path: impl ToString + Clone) -> Result<Bytes, anyhow::Error> {
+    let path = path.into_string();
+    let zip_file = tempfile::tempfile()?;
+    let mut zip = zip::ZipWriter::new(zip_file);
+    let options = zip::write::FileOptions::default().compression_method(zip::CompressionMethod::Stored);
+    let mut buffer = Vec::new();
+    let paths = std::fs::read_dir(path.clone())?;
+    for entry in paths {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_file() {
+            let file_name = path.file_name().unwrap().to_str().unwrap();
+            zip.start_file(file_name, options)?;
+            let mut file = std::fs::File::open(path)?;
+            file.read_to_end(&mut buffer)?;
+            zip.write_all(&buffer)?;
+            buffer.clear();
+        }
+    }
+    zip.finish()?;
+    let mut zip_file = std::fs::File::open(zip_file)?;
+    let mut zip_data = Vec::new();
+    zip_file.read_to_end(&mut zip_data)?;
+    Ok(Bytes::from(zip_data))
+
+}
+*/
